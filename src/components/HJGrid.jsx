@@ -20,7 +20,6 @@ export function HJGrid({ dark }) {
       <BoardHead
         event="Girls High Jump"
         meta="MVAL Championships · Varsity · Bar at 5-02"
-        round="Bar at 5-02"
       />
       <div className="hj-grid">
         <div className="hj-colhead first">Athlete</div>
