@@ -1,0 +1,116 @@
+/* =========================================================================
+   Field Events Live — app shell
+   ========================================================================= */
+
+*, *::before, *::after { box-sizing: border-box; }
+
+html, body {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+  background: var(--ink-900);
+  -webkit-font-smoothing: antialiased;
+}
+
+#root {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  background: var(--ink-900);
+}
+
+/* ── Shell ────────────────────────────────────────────────── */
+.app-shell {
+  width: 100%;
+  max-width: 390px;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  background: var(--paper);
+  box-shadow: 0 0 0 1px rgba(0,0,0,.18), 0 8px 48px rgba(0,0,0,.45);
+}
+
+/* ── Nav ──────────────────────────────────────────────────── */
+.app-nav {
+  background: var(--navy-900);
+  border-bottom: 1px solid var(--navy-700);
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+
+.app-nav-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  padding: 12px 16px 8px;
+}
+
+.app-nav-eyebrow {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: var(--gold-500);
+  font-weight: 600;
+}
+
+.app-nav-event {
+  font-family: var(--font-body);
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--navy-200);
+  letter-spacing: 0;
+}
+
+.app-tabs {
+  display: flex;
+  gap: 0;
+  overflow-x: auto;
+  scrollbar-width: none;
+  padding: 0 12px;
+}
+.app-tabs::-webkit-scrollbar { display: none; }
+
+.app-tab {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.10em;
+  text-transform: uppercase;
+  font-weight: 600;
+  color: var(--navy-400);
+  background: transparent;
+  border: none;
+  padding: 8px 10px 10px;
+  cursor: pointer;
+  white-space: nowrap;
+  border-bottom: 2px solid transparent;
+  transition: color 0.12s ease, border-color 0.12s ease;
+  flex-shrink: 0;
+}
+.app-tab:hover:not(.is-active) { color: var(--navy-200); }
+.app-tab.is-active {
+  color: var(--gold-500);
+  border-bottom-color: var(--gold-500);
+}
+/* dim tabs from the inactive event group */
+.app-tab.other-group {
+  opacity: 0.5;
+}
+.app-tab.other-group:hover { opacity: 0.75; }
+
+/* ── Board area ───────────────────────────────────────────── */
+.app-board {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+.app-board .board {
+  flex: 1;
+}
+
+/* Dark shell tint when stadium/navy board is active */
+.app-shell.dark {
+  background: var(--navy-900);
+}

@@ -1,0 +1,191 @@
+/* =========================================================================
+   Trojan Athletics — Design System
+   Milpitas High School Cross Country & Track & Field
+   Drop-in CSS variables for color + typography.
+   ========================================================================= */
+
+@import url('https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,600;0,9..144,800;0,9..144,900;1,9..144,400;1,9..144,800&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap');
+
+:root {
+  /* ── Brand core ────────────────────────────────────────── */
+  --navy:        #003262;   /* Primary */
+  --gold:        #FDB814;   /* Primary accent */
+  --blue:        #0000FF;   /* Secondary — link / electric */
+  --sky:         #A3DBE4;   /* Secondary — soft */
+  --bronze:      #D4A24C;   /* Secondary — warm metallic */
+
+  /* ── Navy scale ────────────────────────────────────────── */
+  --navy-900: #001A36;
+  --navy-800: #002347;
+  --navy-700: #002A56;
+  --navy-600: #003262;       /* base */
+  --navy-500: #1A4A7C;
+  --navy-400: #4A739A;
+  --navy-200: #B3C2D3;
+  --navy-100: #E0E6EE;
+
+  /* ── Gold scale ────────────────────────────────────────── */
+  --gold-700: #B17C00;
+  --gold-600: #D89A0A;
+  --gold-500: #FDB814;       /* base */
+  --gold-400: #FECB50;
+  --gold-200: #FEE6A5;
+  --gold-100: #FFF4D1;
+
+  /* ── Sky scale ─────────────────────────────────────────── */
+  --sky-700: #4A9AAA;
+  --sky-500: #A3DBE4;
+  --sky-300: #C9E9EF;
+  --sky-100: #E8F5F8;
+
+  /* ── Ink / Neutrals ────────────────────────────────────── */
+  --ink-900: #181818;        /* Primary text */
+  --ink-800: #2A2A2A;
+  --ink-700: #404040;
+  --ink-500: #6A6A6A;
+  --ink-300: #ADADAD;
+  --ink-200: #D4D4D4;
+  --ink-100: #ECECEC;
+  --cream:   #FDF2E0;        /* Warm tint surface */
+  --paper:   #FBFAF6;        /* Default page surface */
+
+  /* ── Semantic ──────────────────────────────────────────── */
+  --success: #2E7D4F;        /* PR / personal record */
+  --warning: #C77700;
+  --danger:  #B3261E;
+  --info:    var(--blue);
+
+  /* ── Foreground / background semantic aliases ──────────── */
+  --bg:    var(--paper);
+  --bg-2:  var(--cream);
+  --bg-inv: var(--navy-600);
+  --fg-1:  var(--ink-900);   /* primary text */
+  --fg-2:  var(--ink-700);   /* secondary text */
+  --fg-3:  var(--ink-500);   /* tertiary / captions */
+  --fg-inv: var(--paper);
+  --border: var(--ink-200);
+  --border-strong: var(--ink-300);
+  --link:  var(--blue);
+  --accent: var(--gold-500);
+  --brand: var(--navy-600);
+
+  /* ── Spacing (8pt + 2 sub-steps) ───────────────────────── */
+  --s-0: 4px;
+  --s-1: 8px;
+  --s-2: 12px;
+  --s-3: 16px;
+  --s-4: 24px;
+  --s-5: 32px;
+  --s-6: 48px;
+  --s-7: 64px;
+  --s-8: 96px;
+  --s-9: 128px;
+
+  /* ── Radii ─────────────────────────────────────────────── */
+  --r-sm:   2px;
+  --r-md:   4px;
+  --r-lg:   8px;
+  --r-pill: 999px;
+
+  /* ── Shadows ───────────────────────────────────────────── */
+  --shadow-sm: 0 1px 2px rgba(24,24,24,.06), 0 1px 1px rgba(24,24,24,.04);
+  --shadow-md: 0 4px 12px rgba(0,50,98,.10), 0 2px 4px rgba(24,24,24,.04);
+  --shadow-lg: 0 18px 40px rgba(0,50,98,.18), 0 6px 12px rgba(24,24,24,.06);
+  --focus-ring: 0 0 0 3px rgba(0,50,98,.22);
+
+  /* ── Type families ─────────────────────────────────────── */
+  --font-display:   'Fraunces', 'Times New Roman', serif;
+  --font-body:      'Inter', system-ui, -apple-system, Segoe UI, sans-serif;
+  --font-mono:      'JetBrains Mono', ui-monospace, SFMono-Regular, monospace;
+
+  /* ── Type sizes ────────────────────────────────────────── */
+  --t-display-xl: clamp(48px, 8vw, 104px); /* hero */
+  --t-display-l:  56px;                    /* article display */
+  --t-h1:         44px;
+  --t-h2:         32px;
+  --t-h3:         22px;
+  --t-body:       16px;
+  --t-small:      13px;
+  --t-eyebrow:    12px;
+
+  /* ── Line heights ──────────────────────────────────────── */
+  --lh-tight:   .95;
+  --lh-snug:    1.15;
+  --lh-body:    1.6;
+
+  /* ── Letter spacing ────────────────────────────────────── */
+  --ls-display: -.02em;
+  --ls-mono:    .15em;        /* eyebrow / label default */
+  --ls-mono-x:  .25em;        /* hero eyebrow / dramatic */
+}
+
+/* =========================================================================
+   Element-level semantic styles
+   ========================================================================= */
+body {
+  font-family: var(--font-body);
+  font-size: var(--t-body);
+  line-height: var(--lh-body);
+  color: var(--fg-1);
+  background: var(--bg);
+  -webkit-font-smoothing: antialiased;
+}
+
+h1, .h1 {
+  font-family: var(--font-display);
+  font-weight: 900;
+  font-style: italic;
+  font-size: var(--t-display-xl);
+  line-height: var(--lh-tight);
+  letter-spacing: var(--ls-display);
+  font-variation-settings: "opsz" 144;
+  color: var(--fg-1);
+  margin: 0 0 var(--s-3);
+}
+h2, .h2 {
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-style: italic;
+  font-size: var(--t-h2);
+  line-height: 1;
+  letter-spacing: -.01em;
+  color: var(--fg-1);
+  margin: 0 0 var(--s-3);
+}
+h3, .h3 {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: var(--t-h3);
+  line-height: var(--lh-snug);
+  color: var(--fg-1);
+  margin: 0 0 var(--s-2);
+}
+p { margin: 0 0 var(--s-3); color: var(--fg-2); }
+
+a { color: var(--link); text-decoration: underline; text-underline-offset: 2px; }
+a:hover { text-decoration-thickness: 2px; }
+
+code, kbd, samp, .mono {
+  font-family: var(--font-mono);
+  font-size: .94em;
+}
+
+.eyebrow {
+  font-family: var(--font-mono);
+  font-size: var(--t-eyebrow);
+  letter-spacing: var(--ls-mono-x);
+  text-transform: uppercase;
+  color: var(--brand);
+  font-weight: 500;
+}
+
+.label {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: var(--ls-mono);
+  text-transform: uppercase;
+  color: var(--fg-3);
+  font-weight: 600;
+}
+
+.small { font-size: var(--t-small); color: var(--fg-3); }
