@@ -1,25 +1,71 @@
-# CODING AGENTS: READ THIS FIRST
+# Field Events Live
 
-This is a **handoff bundle** from Claude Design (claude.ai/design).
+Live results for track-and-field field events — long jump, triple jump, high
+jump and friends. Officials score from a phone at the pit; spectators watch
+ranked leaderboards update in real time. Visual language: the Trojan
+Athletics design system (navy/gold, Fraunces/Inter/JetBrains Mono).
 
-A user mocked up designs in HTML/CSS/JS using an AI design tool, then exported this bundle so a coding agent can implement the designs for real.
+## Run it
 
-## What you should do — IMPORTANT
+```bash
+npm install
+npm start          # builds the frontend and serves everything on :8787
+```
 
-**Read the chat transcripts first.** There are 1 chat transcript(s) in `chats/`. The transcripts show the full back-and-forth between the user and the design assistant — they tell you **what the user actually wants** and **where they landed** after iterating. Don't skip them. The final HTML files are the output, but the chat is where the intent lives.
+Then open http://localhost:8787 — the demo meet is **MVAL26**
+(official code **TROJAN**).
 
-**Read `project/Spectator Leaderboard Variations.html` in full.** The user had this file open when they triggered the handoff, so it's almost certainly the primary design they want built. Read it top to bottom — don't skim. Then **follow its imports**: open every file it pulls in (shared components, CSS, scripts) so you understand how the pieces fit together before you start implementing.
+For development with hot reload, run two terminals:
 
-**If anything is ambiguous, ask the user to confirm before you start implementing.** It's much cheaper to clarify scope up front than to build the wrong thing.
+```bash
+npm run server     # API + WebSocket on :8787
+npm run dev        # Vite dev server on :5173 (proxies /api and /ws)
+```
 
-## About the design files
+Logic smoke tests: `node server/smoke-test.js`
 
-The design medium is **HTML/CSS/JS** — these are prototypes, not production code. Your job is to **recreate them pixel-perfectly** in whatever technology makes sense for the target codebase (React, Vue, native, whatever fits). Match the visual output; don't copy the prototype's internal structure unless it happens to fit.
+## How access works (the code system)
 
-**Don't render these files in a browser or take screenshots unless the user asks you to.** Everything you need — dimensions, colors, layout rules — is spelled out in the source. Read the HTML and CSS directly; a screenshot won't tell you anything they don't.
+Every meet gets two codes when it's created, Among-Us style:
 
-## Bundle contents
+- **Meet code** (e.g. `MVAL26`) — public. Anyone with it can spectate.
+  Viewing is always read-only; there is no way to edit through the
+  spectator view.
+- **Official code** (e.g. `TROJAN`) — secret, shown once to the meet
+  director at creation. Officials enter it to get a server-issued token;
+  every result write requires that token.
 
-- `README.md` — this file
-- `chats/` — conversation transcripts (read these!)
-- `project/` — the `field events app` project files (HTML prototypes, assets, components)
+## Event formats
+
+- **Horizontal, 3+3** (`prelim3final3`) — three prelim attempts in flight
+  order, three finals attempts in reverse rank order (last place jumps
+  first). Six columns.
+- **Horizontal, 4-attempt** (`open4`) — four attempts total, flight order
+  throughout, no finals re-order. Four columns. The demo's Boys Triple
+  Jump uses this.
+- **Vertical** — bar-height progression grid (O / X / —), three
+  consecutive misses eliminates, countback tie-breaks.
+
+## Hy-Tek export
+
+`GET /api/meets/:code/export/hytek?units=E|M` downloads a semicolon-
+delimited file of Hy-Tek "D" records (one per athlete per event, best mark
++ E/M measure flag) — the format Hy-Tek Track & Field MEET MANAGER imports
+via *File → Import → Entries* and athletic.net accepts for results uploads.
+Also linked from the spectator view ("Hy-Tek ↓").
+
+## Repo layout
+
+- `server/` — Express + WebSocket API, JSON-file store, Hy-Tek export
+- `shared/` — mark formatting/parsing and ranking logic (used by both sides)
+- `src/` — React frontend: landing/join, spectator boards, officials' entry
+- `project/`, `chats/` — the original Claude Design handoff bundle these
+  designs came from
+- `HANDOFF.md` — production deployment guidance
+
+## Spectator board variants
+
+The three long jump explorations (A · Editorial, B · Stadium, C · Pit view)
+and two high jump grids (Light, Navy) from the design phase are all live —
+toggle between them in the spectator view's sub-bar, along with ft-in ⇄
+meters units.
