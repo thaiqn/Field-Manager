@@ -137,7 +137,8 @@ function broadcast(code) {
   for (const ws of subs) if (ws.readyState === 1) ws.send(msg);
 }
 
-server.listen(PORT, () => {
-  console.log(`Field Events Live on http://localhost:${PORT}`);
+const HOST = process.env.HOST || '0.0.0.0';
+server.listen(PORT, HOST, () => {
+  console.log(`Field Events Live listening on http://${HOST}:${PORT}`);
   console.log(`Demo meet: spectate code MVAL26 · official code TROJAN`);
 });
