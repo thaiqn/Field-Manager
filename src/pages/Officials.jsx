@@ -133,7 +133,7 @@ function Gate({ text }) {
 }
 
 // ── Horizontal entry pad ────────────────────────────────────────
-function EntryPadHoriz({ units, event, flight, target, post, onSaved }) {
+export function EntryPadHoriz({ units, event, flight, target, post, onSaved }) {
   const athlete = athleteById(flight, target.athleteId);
   const existing = (flight.marks[target.athleteId] || [])[target.round];
 
@@ -234,7 +234,7 @@ function EntryPadHoriz({ units, event, flight, target, post, onSaved }) {
 }
 
 // ── Vertical (bar) entry ────────────────────────────────────────
-function EntryPadVert({ units, event, flight, post }) {
+export function EntryPadVert({ units, event, flight, post }) {
   const nextUp = M.vertNextUp(flight);
   const [selId, setSelId] = useState(null);
   const targetId = selId || (nextUp && nextUp.athleteId) || null;
@@ -312,7 +312,7 @@ function EntryPadVert({ units, event, flight, post }) {
 }
 
 // ── Setup tab ───────────────────────────────────────────────────
-function SetupTab({ data, units, event, flight, code, post, onRelock, onCodeChange }) {
+export function SetupTab({ data, units, event, flight, code, post, onRelock, onCodeChange }) {
   const meet = data.meet;
   const [info, setInfo] = useState(meet);
   const [ath, setAth] = useState({ name: '', team: '', bib: '', ft: '', inch: '', m: '' });
@@ -457,7 +457,7 @@ function SetupTab({ data, units, event, flight, code, post, onRelock, onCodeChan
 }
 
 // ── Access-code lock ────────────────────────────────────────────
-function LockScreen({ code, meetName, onUnlock }) {
+export function LockScreen({ code, meetName, onUnlock }) {
   const LEN = 6;
   const [vals, setVals] = useState(Array(LEN).fill(''));
   const [err, setErr] = useState('');
