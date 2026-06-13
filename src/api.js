@@ -14,9 +14,10 @@ export async function api(path, { method = 'GET', body, token } = {}) {
   return data;
 }
 
-// Live meet subscription. Returns { meet, error, flash } where flash is a
-// Set of "eventId:athleteId:idx" keys for results that just changed —
-// the spectator boards pulse those cells gold.
+// Live meet subscription over WebSocket. Returns { meet, error, flash } where
+// flash is a Set of changed-cell keys the boards pulse gold:
+//   horizontal → `${flightId}:${athleteId}:${round}`
+//   vertical   → `${flightId}:${athleteId}:${heightIdx}`
 export function useMeet(code) {
   const [meet, setMeet] = useState(null);
   const [error, setError] = useState(null);
@@ -34,19 +35,16 @@ export function useMeet(code) {
         const msg = JSON.parse(e.data);
         if (msg.type !== 'meet') return;
         const next = msg.meet;
-        const prev = prevRef.current;
-        if (prev) {
-          const changed = diffResults(prev, next);
-          if (changed.length) {
-            setFlash((f) => new Set([...f, ...changed]));
-            timers.current.push(setTimeout(() => {
-              setFlash((f) => {
-                const out = new Set(f);
-                changed.forEach((k) => out.delete(k));
-                return out;
-              });
-            }, 2400));
-          }
+        const changed = prevRef.current ? diffMarks(prevRef.current, next) : [];
+        if (changed.length) {
+          setFlash((f) => new Set([...f, ...changed]));
+          timers.current.push(setTimeout(() => {
+            setFlash((f) => {
+              const out = new Set(f);
+              changed.forEach((k) => out.delete(k));
+              return out;
+            });
+          }, 1900));
         }
         prevRef.current = next;
         setMeet(next);
@@ -70,18 +68,31 @@ export function useMeet(code) {
   return { meet, error, flash };
 }
 
-function diffResults(prev, next) {
+function diffMarks(prev, next) {
   const changed = [];
   for (const ev of next.events) {
     const pe = prev.events.find((e) => e.id === ev.id);
     if (!pe) continue;
-    for (const [athId, atts] of Object.entries(ev.results)) {
-      const pAtts = pe.results[athId] || [];
-      atts.forEach((v, i) => {
-        if (v !== null && v !== '' && v !== (pAtts[i] ?? (ev.type === 'vertical' ? '' : null))) {
-          changed.push(`${ev.id}:${athId}:${i}`);
+    for (const fl of ev.flights) {
+      const pf = pe.flights.find((f) => f.id === fl.id);
+      if (!pf) continue;
+      if (fl.type === 'vertical') {
+        for (const [aid, rec] of Object.entries(fl.attempts || {})) {
+          const prec = (pf.attempts || {})[aid] || {};
+          for (const [hi, val] of Object.entries(rec)) {
+            if (val && val !== prec[hi]) changed.push(`${fl.id}:${aid}:${hi}`);
+          }
         }
-      });
+      } else {
+        for (const [aid, atts] of Object.entries(fl.marks || {})) {
+          const patts = (pf.marks || {})[aid] || [];
+          atts.forEach((v, i) => {
+            const pv = patts[i];
+            const k = JSON.stringify(v);
+            if (v && k !== JSON.stringify(pv)) changed.push(`${fl.id}:${aid}:${i}`);
+          });
+        }
+      }
     }
   }
   return changed;

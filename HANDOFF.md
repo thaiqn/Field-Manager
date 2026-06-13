@@ -39,29 +39,31 @@ full meet snapshot (a few KB) per result entry.
 
 ## Hy-Tek interop notes
 
-The export produces semicolon-delimited **D records** (18 fields, CRLF):
+The export produces an **H header** record plus one **33-field E result
+record** per athlete (semicolon-delimited, CRLF):
 
 ```
-D;Patel;Maya;;F;;MILP;Milpitas;;;LJ;17-08.25;E;;;;;
+H;MVAL Championships;05/08/2026;05/08/2026;Field Events Live (prototype);06/13/2026;Milpitas High School
+E;F;1;;LJ;F;;;Flight 1;F;17'8.25;E;;2;2;1;;;;;;;Patel;Maya;;F;;MILP;Milpitas;;;214;
 ```
 
 - Imports into Track & Field MEET MANAGER 6.0 via **File → Import →
-  Entries** — MM treats the mark as the athlete's mark for the event.
-  Verify against your MM install once; field 14+ semantics (division,
-  declaration) vary by MM configuration and are left empty.
+  Semi-Colon Delimited Rosters/Entries File**. The E record carries event
+  code, gender, division (flight name), overall + flight place, English
+  (`17'8.25`) or metric mark, team code, and bib.
 - athletic.net accepts the same file under *Upload results → Hy-Tek*.
-- Athletes with no valid mark export as `NM` — MM may skip those rows on
-  import; that's the desired behavior.
-- If you need MM's *results interchange* specifically (places, wind, full
+- Athletes with no valid mark export as `ND` (horizontal) / `NH` (vertical);
+  athletes with no attempt at all are skipped.
+- Verify field semantics against your MM install once — fields beyond place
+  (declaration, seed, wind) vary by MM configuration and are left empty.
+- If you need MM's full *results interchange* (wind per attempt, the full
   attempt series), the path is the Lynx/FieldLynx `.lff` interface; the
   attempt-level data model here already has everything needed to add that
   writer.
 
 ## Not built yet (deliberately)
 
-- Event/roster setup UI — events are seeded; add CRUD endpoints mirroring
-  the result endpoints (the validation pattern is established).
 - Wind readings per attempt (matters for record validation).
 - CSV/PDF export (user opted to skip for the prototype).
-- Multi-flight rotation within one event (data model has `flightLabel`
-  display only).
+- Persisted official sessions (tokens are in-memory; officials re-enter the
+  code after a server restart).

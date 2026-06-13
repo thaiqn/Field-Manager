@@ -1,69 +1,74 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useMeet } from '../api';
 import { navigate } from '../router';
-import { HBoardA, HBoardB, HBoardC } from '../components/HorizontalBoard';
-import { VBoard } from '../components/VerticalBoard';
+import {
+  AppTop, SegUnits, Chips, HorizBoard, VertBoard, flightStatus, eventStatus,
+} from '../components/SharedUI';
 
-const H_VARIANTS = [['a', 'Editorial'], ['b', 'Stadium'], ['c', 'Pit view']];
-const V_VARIANTS = [['a', 'Light'], ['b', 'Navy']];
+function useUnits() {
+  const [units, setRaw] = useState(() => {
+    try { return localStorage.getItem('fel-units') || 'imperial'; } catch { return 'imperial'; }
+  });
+  const setUnits = (u) => { setRaw(u); try { localStorage.setItem('fel-units', u); } catch {} };
+  return [units, setUnits];
+}
 
 export function Spectate({ code }) {
-  const { meet, error, flash } = useMeet(code);
+  const { meet: data, error, flash } = useMeet(code);
+  const [units, setUnits] = useUnits();
   const [eventId, setEventId] = useState(null);
-  const [variant, setVariant] = useState('a');
-  const [units, setUnits] = useState('E');
+  const [flightId, setFlightId] = useState(null);
+
+  // default to a live event/flight once data arrives
+  useEffect(() => { setFlightId(null); }, [eventId]);
 
   if (error) return <Message text={error} />;
-  if (!meet) return <Message text="Connecting…" />;
+  if (!data) return <Message text="Connecting…" />;
+  const meet = data.meet;
+  if (!data.events.length) return <Message text="No events published yet." />;
 
-  const event = meet.events.find((e) => e.id === eventId) || meet.events[0];
-  if (!event) return <Message text="No events in this meet yet." />;
-  const variants = event.type === 'vertical' ? V_VARIANTS : H_VARIANTS;
-  const v = variants.some(([id]) => id === variant) ? variant : 'a';
-  const dark = v === 'b';
-
-  const HBoard = { a: HBoardA, b: HBoardB, c: HBoardC }[v];
-  const board = event.type === 'vertical'
-    ? <VBoard event={event} meet={meet} units={units} dark={dark} flash={flash} />
-    : <HBoard event={event} meet={meet} units={units} flash={flash} />;
+  const event = data.events.find((e) => e.id === eventId)
+    || data.events.find((e) => eventStatus(e) === 'live') || data.events[0];
+  const flight = event.flights.find((f) => f.id === flightId)
+    || event.flights.find((f) => flightStatus(f) === 'live') || event.flights[0];
+  const anyLive = data.events.some((e) => eventStatus(e) === 'live');
 
   return (
-    <div className={'app-shell' + (dark ? ' dark' : '')}>
-      <header className="app-nav">
-        <div className="app-nav-top">
-          <button className="app-back" onClick={() => navigate('/')}>←</button>
-          <span className="app-nav-eyebrow">{meet.name}</span>
-          <span className="app-nav-event mono-code">{meet.code}</span>
+    <div className="pulse-on">
+      <AppTop kicker={anyLive ? 'Live results' : 'Results'} live={anyLive} meet={meet}>
+        <SegUnits units={units} onChange={setUnits} />
+      </AppTop>
+      <div className="app-shell">
+        <Chips
+          items={data.events.map((e) => ({ id: e.id, label: e.name, status: eventStatus(e) }))}
+          value={event.id} onChange={setEventId}
+        />
+        {event.flights.length > 1 && (
+          <Chips
+            items={event.flights.map((f) => ({ id: f.id, label: f.name, status: flightStatus(f) }))}
+            value={flight.id} onChange={setFlightId}
+          />
+        )}
+
+        {flight.type === 'horizontal'
+          ? <HorizBoard event={event} flight={flight} units={units} showHero flash={flash} />
+          : <VertBoard event={event} flight={flight} units={units} showHero flash={flash} />}
+
+        <p className="home-note" style={{ margin: 'var(--s-3) 0 0' }}>Updates automatically — no refresh needed</p>
+        <div className="home-sub" style={{ marginTop: 'var(--s-3)' }}>
+          <a className="btn btn-ghost btn-sm" href="#/">← Home</a>
+          <a className="btn btn-outline btn-sm" href={`#/official/${code}`}>Officials scoring →</a>
         </div>
-        <div className="app-tabs">
-          {meet.events.map((e) => (
-            <button key={e.id} className={'app-tab' + (e.id === event.id ? ' is-active' : '')}
-              onClick={() => setEventId(e.id)}>{e.name}</button>
-          ))}
-        </div>
-        <div className="app-subbar">
-          <div className="seg">
-            {variants.map(([id, label]) => (
-              <button key={id} className={'seg-btn' + (id === v ? ' is-active' : '')} onClick={() => setVariant(id)}>{label}</button>
-            ))}
-          </div>
-          <div className="seg">
-            {[['E', 'ft-in'], ['M', 'meters']].map(([id, label]) => (
-              <button key={id} className={'seg-btn' + (id === units ? ' is-active' : '')} onClick={() => setUnits(id)}>{label}</button>
-            ))}
-          </div>
-          <a className="export-link" href={`/api/meets/${meet.code}/export/hytek?units=${units}`} download>Hy-Tek ↓</a>
-        </div>
-      </header>
-      <main className="app-board">{board}</main>
+      </div>
     </div>
   );
 }
 
 function Message({ text }) {
   return (
-    <div className="app-shell">
-      <div className="app-message">{text}</div>
+    <div className="app-message">
+      <div>{text}</div>
+      <a className="btn btn-ghost btn-sm" href="#/">← Home</a>
     </div>
   );
 }

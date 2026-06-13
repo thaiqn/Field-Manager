@@ -4,9 +4,9 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { WebSocketServer } from 'ws';
 import * as store from './store.js';
+import { mutate } from './store.js';
 import { makeToken } from './codes.js';
-import { exportMeet } from './hytek.js';
-import { attemptCount } from '../shared/rank.js';
+import { buildResults } from './hytek.js';
 
 const PORT = process.env.PORT || 8787;
 const app = express();
@@ -21,8 +21,9 @@ function requireOfficial(req, res, next) {
   const token = (req.headers.authorization || '').replace(/^Bearer\s+/i, '');
   const meetCode = tokens.get(token);
   if (!meetCode || meetCode !== req.params.code.toUpperCase()) {
-    return res.status(401).json({ error: 'Officials only. Join with the meet’s official code.' });
+    return res.status(401).json({ error: 'Officials only — enter the meet code to score.' });
   }
+  req.token = token;
   next();
 }
 
@@ -35,8 +36,6 @@ function getMeet(req, res) {
 // ── Meets ─────────────────────────────────────────────────────
 app.post('/api/meets', (req, res) => {
   const meet = store.createMeet(req.body || {});
-  // The only time officialCode is sent over the wire — shown once to the
-  // meet director at creation.
   res.json({ meet: store.publicMeet(meet), officialCode: meet.officialCode });
 });
 
@@ -50,69 +49,51 @@ app.post('/api/meets/:code/auth', (req, res) => {
   const meet = getMeet(req, res);
   if (!meet) return;
   if (String(req.body?.officialCode || '').toUpperCase() !== meet.officialCode) {
-    return res.status(403).json({ error: 'Wrong official code.' });
+    return res.status(403).json({ error: 'That code doesn’t match this meet' });
   }
   const token = makeToken();
   tokens.set(token, meet.code);
   res.json({ token });
 });
 
-// ── Results entry (officials only) ────────────────────────────
-app.post('/api/meets/:code/events/:eventId/result', requireOfficial, (req, res) => {
+// ── Mutations (officials only) ────────────────────────────────
+// A single dispatch endpoint keeps the wire surface small; every op maps to
+// a server-authoritative mutator in store.js.
+const OPS = {
+  mark: 'recordMark', vert: 'vertRecord', 'vert-undo': 'vertUndo',
+  bar: 'setBar', 'add-height': 'addHeight',
+  meet: 'updateMeet', 'add-event': 'addEvent', 'add-flight': 'addFlight',
+  'flight-format': 'setFlightFormat', 'add-athlete': 'addAthlete',
+  'remove-athlete': 'removeAthlete', record: 'setRecord', reset: 'resetDemo',
+};
+
+app.post('/api/meets/:code/op/:op', requireOfficial, (req, res) => {
   const meet = getMeet(req, res);
   if (!meet) return;
-  const event = meet.events.find((e) => e.id === req.params.eventId);
-  if (!event) return res.status(404).json({ error: 'No such event.' });
-  const { athleteId } = req.body || {};
-  if (!event.athletes.some((a) => a.id === athleteId)) {
-    return res.status(400).json({ error: 'Unknown athlete.' });
+  const fn = OPS[req.params.op];
+  if (!fn) return res.status(400).json({ error: 'Unknown op.' });
+
+  // Validate the few ops that touch athlete-supplied marks.
+  const body = req.body || {};
+  if (req.params.op === 'mark') {
+    const e = body.entry;
+    const ok = e === null || (e && (e.t === 'foul' || e.t === 'pass' ||
+      (e.t === 'mark' && typeof e.v === 'number' && e.v > 0 && e.v < 40)));
+    if (!ok) return res.status(400).json({ error: 'Bad mark entry.' });
+  }
+  if (req.params.op === 'vert' && !['O', 'X', 'P'].includes(body.result)) {
+    return res.status(400).json({ error: 'Bad vertical result.' });
   }
 
-  if (event.type === 'horizontal') {
-    const { attempt, mark } = req.body; // attempt: 0-based; mark: inches | 'X' | 'P' | null
-    const n = attemptCount(event);
-    if (!Number.isInteger(attempt) || attempt < 0 || attempt >= n) {
-      return res.status(400).json({ error: `Attempt must be 1–${n}.` });
-    }
-    const ok = mark === null || mark === 'X' || mark === 'P' || (typeof mark === 'number' && mark > 0 && mark < 1200);
-    if (!ok) return res.status(400).json({ error: 'Bad mark.' });
-    const atts = event.results[athleteId] || new Array(n).fill(null);
-    while (atts.length < n) atts.push(null);
-    atts[attempt] = mark;
-    event.results[athleteId] = atts;
-  } else {
-    const { heightIndex, cell } = req.body; // cell: '', 'X', 'XX', 'XXX', 'O', 'XO', 'XXO', 'P'
-    if (!Number.isInteger(heightIndex) || heightIndex < 0 || heightIndex >= event.heights.length) {
-      return res.status(400).json({ error: 'Bad height.' });
-    }
-    if (!/^(X{0,2}O|X{1,3}|P|)$/.test(String(cell))) {
-      return res.status(400).json({ error: 'Bad cell — use O, XO, XXO, XXX, X, XX, P, or empty.' });
-    }
-    const cells = event.results[athleteId] || new Array(event.heights.length).fill('');
-    while (cells.length < event.heights.length) cells.push('');
-    cells[heightIndex] = cell;
-    event.results[athleteId] = cells;
+  // Code rotation invalidates every token issued for this meet (incl. caller).
+  if (req.params.op === 'meet' && body.regenerate) {
+    const fresh = mutate.regenerateCode(meet);
+    for (const [t, c] of tokens) if (c === meet.code) tokens.delete(t);
+    broadcast(meet.code);
+    return res.json({ ok: true, officialCode: fresh, relock: true });
   }
 
-  store.save();
-  broadcast(meet.code);
-  res.json({ ok: true });
-});
-
-// Bar control for vertical events (raise/set current height).
-app.post('/api/meets/:code/events/:eventId/bar', requireOfficial, (req, res) => {
-  const meet = getMeet(req, res);
-  if (!meet) return;
-  const event = meet.events.find((e) => e.id === req.params.eventId);
-  if (!event || event.type !== 'vertical') return res.status(404).json({ error: 'No such vertical event.' });
-  const { curHeight, addHeight } = req.body || {};
-  if (typeof addHeight === 'number' && addHeight > 0 && addHeight < 1200) {
-    event.heights.push(addHeight);
-  }
-  if (Number.isInteger(curHeight) && curHeight >= 0 && curHeight < event.heights.length) {
-    event.curHeight = curHeight;
-  }
-  store.save();
+  mutate[fn](meet, body);
   broadcast(meet.code);
   res.json({ ok: true });
 });
@@ -121,13 +102,14 @@ app.post('/api/meets/:code/events/:eventId/bar', requireOfficial, (req, res) => 
 app.get('/api/meets/:code/export/hytek', (req, res) => {
   const meet = getMeet(req, res);
   if (!meet) return;
-  const units = req.query.units === 'M' ? 'M' : 'E';
+  const units = req.query.units === 'metric' ? 'metric' : 'imperial';
+  const fname = meet.meet.name.replace(/[^\w]+/g, '-').toLowerCase() + '-hytek-results.txt';
   res.setHeader('Content-Type', 'text/plain; charset=utf-8');
-  res.setHeader('Content-Disposition', `attachment; filename="${meet.code}-results-hytek.txt"`);
-  res.send(exportMeet(meet, units));
+  res.setHeader('Content-Disposition', `attachment; filename="${fname}"`);
+  res.send(buildResults(meet, units));
 });
 
-// ── Static frontend (production single-artifact deploy) ──────
+// ── Static frontend (single-artifact deploy) ─────────────────
 const dist = path.join(path.dirname(fileURLToPath(import.meta.url)), '..', 'dist');
 app.use(express.static(dist));
 app.get(/^\/(?!api\/).*/, (_req, res) => res.sendFile(path.join(dist, 'index.html')));
@@ -157,5 +139,5 @@ function broadcast(code) {
 
 server.listen(PORT, () => {
   console.log(`Field Events Live on http://localhost:${PORT}`);
-  console.log(`Demo meet: code MVAL26 · official code TROJAN`);
+  console.log(`Demo meet: spectate code MVAL26 · official code TROJAN`);
 });

@@ -247,16 +247,3 @@ body { background: var(--paper); }
 
 .empty-note { padding: var(--s-5) var(--s-3); text-align: center; color: var(--ink-500); font-size: 14px; }
 .empty-note .mono { display: block; font-size: 10px; letter-spacing: .14em; text-transform: uppercase; margin-bottom: 6px; color: var(--gold-700); }
-
-/* ── Home hero (from Field Events Live.html inline styles) ─────────── */
-.wrap-narrow { max-width: 680px; margin: 0 auto; padding: 0 var(--s-3); }
-.hero-kicker { font-family: var(--font-mono); font-size: 10px; letter-spacing: .2em; text-transform: uppercase; color: var(--gold-500); font-weight: 600; }
-.hero-title { font-family: var(--font-display); font-weight: 800; font-size: 44px; line-height: 1.02; color: var(--paper); margin: 10px 0 12px; }
-.hero-title em { font-style: italic; color: var(--gold-400); }
-.hero-dek { font-size: 16px; line-height: var(--lh-body); color: var(--navy-100); max-width: 46ch; margin: 0; }
-.track-divider { height: 32px; background: linear-gradient(to bottom, transparent 12px, var(--navy-600) 12px, var(--navy-600) 16px, transparent 16px), repeating-linear-gradient(90deg, var(--gold-500) 0 24px, transparent 24px 48px); background-size: 100% 100%, 100% 4px; background-position: 0 0, 0 22px; background-repeat: no-repeat, no-repeat; }
-.home-note { font-family: var(--font-mono); font-size: 10px; letter-spacing: .12em; text-transform: uppercase; color: var(--ink-500); text-align: center; margin: var(--s-4) 0 var(--s-6); }
-.home-sub { display: flex; gap: var(--s-2); justify-content: center; flex-wrap: wrap; margin-top: var(--s-2); }
-.home-join { display: flex; gap: var(--s-2); margin-top: var(--s-4); }
-.home-join input { flex: 1; }
-.app-message { max-width: 680px; margin: 0 auto; padding: var(--s-7) var(--s-3); text-align: center; color: var(--ink-500); font-size: 14px; display: flex; flex-direction: column; align-items: center; gap: var(--s-3); }

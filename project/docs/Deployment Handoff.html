@@ -1,0 +1,105 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Deployment Handoff — Field Events Live</title>
+<link rel="stylesheet" href="../ds/colors_and_type.css">
+<style>
+  html, body { margin: 0; padding: 0; background: var(--paper); color: var(--ink-900); font-family: var(--font-body); }
+  .doc { max-width: 760px; margin: 0 auto; padding: var(--s-6) var(--s-4) var(--s-8); }
+  .doc-kicker { font-family: var(--font-mono); font-size: 11px; letter-spacing: .22em; text-transform: uppercase; color: var(--gold-700); font-weight: 600; }
+  h1 { font-family: var(--font-display); font-weight: 800; font-size: 38px; line-height: 1.05; margin: 10px 0 8px; }
+  h1 em { font-style: italic; }
+  .dek { font-size: 16px; color: var(--ink-700); line-height: 1.55; margin: 0 0 var(--s-5); max-width: 56ch; }
+  h2 { font-family: var(--font-display); font-weight: 700; font-size: 23px; margin: var(--s-6) 0 var(--s-2); }
+  h3 { font-family: var(--font-body); font-weight: 600; font-size: 15px; margin: var(--s-4) 0 var(--s-1); }
+  p, li { font-size: 14.5px; line-height: 1.65; color: var(--ink-700); }
+  li { margin-bottom: 4px; }
+  strong { color: var(--ink-900); }
+  code { font-family: var(--font-mono); font-size: 12.5px; background: var(--cream); border: 1px solid var(--ink-200); border-radius: var(--r-sm); padding: 1px 5px; color: var(--navy-700); }
+  pre { background: var(--navy-900); color: var(--navy-100); font-family: var(--font-mono); font-size: 12px; line-height: 1.6; padding: var(--s-3); border-radius: var(--r-md); overflow-x: auto; }
+  pre code { background: none; border: 0; padding: 0; color: inherit; }
+  table { width: 100%; border-collapse: collapse; margin: var(--s-2) 0; }
+  th { font-family: var(--font-mono); font-size: 10px; letter-spacing: .14em; text-transform: uppercase; color: var(--ink-500); text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--ink-200); }
+  td { font-size: 13.5px; padding: 9px 10px; border-bottom: 1px solid var(--ink-100); color: var(--ink-700); vertical-align: top; }
+  td:first-child { font-weight: 600; color: var(--ink-900); white-space: nowrap; }
+  .note { background: var(--cream); border: 1px solid var(--ink-200); border-left: 4px solid var(--gold-500); border-radius: var(--r-md); padding: var(--s-3); font-size: 13.5px; color: var(--ink-700); }
+  a { color: var(--navy-600); }
+  .back { font-family: var(--font-mono); font-size: 11px; letter-spacing: .12em; text-transform: uppercase; }
+</style>
+</head>
+<body>
+<div class="doc">
+  <p class="back"><a href="../Field Events Live.html">← Field Events Live</a></p>
+  <div class="doc-kicker">Engineering handoff · June 2026</div>
+  <h1>Taking Field Events Live to a <em>real</em> deployment</h1>
+  <p class="dek">The prototype simulates real-time sync with browser storage. This doc maps each piece of the prototype onto a minimal, single-deployable production stack and lists what to build, in order.</p>
+
+  <h2>What the prototype already settles</h2>
+  <ul>
+    <li><strong>Domain logic</strong> — <code>app/marks.js</code> is plain framework-free JS and ports directly to a Node backend: unit conversion (meters canonical, quarter-inch imperial rounding), best-mark ranking with second-best tiebreak, high-jump countback (misses at best height, then total misses), three-consecutive-miss elimination, and rotation order incl. finals reversal.</li>
+    <li><strong>UI</strong> — two React views (officials' entry, spectator board) plus shared components in <code>app/shared-ui.jsx</code>. These translate 1:1 into a Vite + React app.</li>
+    <li><strong>State shape</strong> — the store in <code>app/store.js</code> defines the full data model (below). Keep it; it becomes your DB schema and WebSocket payload.</li>
+  </ul>
+
+  <h2>Recommended stack — one deployable artifact</h2>
+  <table>
+    <tr><th>Layer</th><th>Choice</th><th>Why</th></tr>
+    <tr><td>Runtime</td><td>Node 20 + Express</td><td>One process serves the API, the WebSocket, and the built frontend's static files.</td></tr>
+    <tr><td>Real-time</td><td>Socket.io</td><td>Rooms per flight (<code>flight:&lt;id&gt;</code>); automatic reconnection matters on stadium Wi-Fi.</td></tr>
+    <tr><td>Storage</td><td>SQLite via better-sqlite3</td><td>A meet is a few thousand rows; zero-ops, single file, survives restarts. Postgres only if you need multi-venue.</td></tr>
+    <tr><td>Frontend</td><td>Vite + React 18</td><td>Port the JSX as-is; replace Babel-standalone with a real build.</td></tr>
+    <tr><td>Styling</td><td>Keep the CSS</td><td><code>ds/colors_and_type.css</code> + <code>app/app.css</code> are plain CSS custom properties — no Tailwind needed.</td></tr>
+    <tr><td>Deploy</td><td>Fly.io / Railway / a $5 VPS</td><td>Single container, SQLite volume mounted. One <code>Dockerfile</code>.</td></tr>
+  </table>
+
+  <h2>Data model (mirrors the prototype store)</h2>
+<pre><code>meets    (id, name, venue, date)
+events   (id, meet_id, name, kind 'horizontal'|'vertical', record_m)
+flights  (id, event_id, name, rounds, cur_height_idx)
+heights  (flight_id, idx, meters)            -- vertical only
+athletes (id, flight_id, name, team, bib, seed_m, pr_m, sb_m, ord)
+attempts (flight_id, athlete_id, round, kind 'mark'|'foul'|'pass', meters)   -- horizontal
+bar_attempts (flight_id, athlete_id, height_idx, seq 'XO'|'P'|...)           -- vertical</code></pre>
+  <p>Store marks in <strong>meters, always</strong>. Convert at render time only — exactly as <code>marks.js</code> does. Never store the formatted string.</p>
+
+  <h2>API + socket surface</h2>
+<pre><code>POST /api/flights/:id/marks        { athleteId, round, kind, meters? }   (officials, authed)
+POST /api/flights/:id/bar          { athleteId, result: 'O'|'X'|'P' }
+POST /api/flights/:id/bar-height   { heightIdx }                          (set / raise bar)
+GET  /api/flights/:id              full flight snapshot (initial load)
+
+socket: join('flight:&lt;id&gt;')  →  server emits 'flight:update' with the
+same snapshot after every accepted write. Spectator clients re-render
+from the snapshot — identical to the prototype's storage-event path.</code></pre>
+  <ul>
+    <li><strong>Snapshots, not diffs.</strong> A flight snapshot is &lt;10&nbsp;KB; sending the whole thing after each mark removes an entire class of sync bugs. (The prototype proves this works — it re-reads full state per change.)</li>
+    <li><strong>Server is authoritative</strong> for ranking and elimination. Run the same <code>marks.js</code> functions server-side and include computed places in the snapshot so all clients agree.</li>
+    <li><strong>Auth:</strong> a per-meet officials' PIN issued by the meet director is enough for v1. Spectator routes are public and read-only.</li>
+  </ul>
+
+  <h2>Port order</h2>
+  <ol>
+    <li>Scaffold Vite + Express + Socket.io; serve the built app from Express.</li>
+    <li>Move <code>app/marks.js</code> to a shared <code>lib/</code> imported by both server and client. Add unit tests for ranking, countback, elimination, and imperial rounding first — they encode the competition rules.</li>
+    <li>Replace <code>app/store.js</code> internals: same mutator names (<code>recordMark</code>, <code>vertRecord</code>, <code>setBar</code>…) but POSTing to the API; replace the <code>storage</code> listener with the socket subscription. The React components shouldn't need to change.</li>
+    <li>SQLite persistence + snapshot endpoint.</li>
+    <li>CSV export: one <code>GET /api/flights/:id.csv</code> route — flatten the snapshot; PDF can be print CSS on the spectator view.</li>
+    <li>Hardening: officials' PIN, optimistic UI with rollback, offline queue for the entry pad (stadium Wi-Fi dies; queue writes in IndexedDB and flush on reconnect).</li>
+  </ol>
+
+  <div class="note">
+    <strong>Two prototype behaviors to keep on purpose:</strong> the 2-second polling fallback on the spectator view (belt-and-suspenders when a socket silently dies), and the "tap any cell to correct" pattern on the officials' sheet — corrections are constant at real meets and burying them behind an edit mode is the most common scoring-app mistake.
+  </div>
+
+  <h2>Known prototype limitations</h2>
+  <ul>
+    <li>Sync is per-browser (localStorage) — two different phones don't share state until the backend exists.</li>
+    <li>No auth; anyone with the officials' URL can score.</li>
+    <li>CSV/PDF export was descoped from the prototype (per your call) — it's step 5 above.</li>
+    <li>Tie places display correctly (shared place numbers) but award-position resolution (jump-off prompts) is not modeled.</li>
+  </ul>
+</div>
+</body>
+</html>

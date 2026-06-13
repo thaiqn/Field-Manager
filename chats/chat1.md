@@ -451,3 +451,202 @@ Fixed — widened the athlete column to 124px and dropped the letter-spacing, wh
 
 The canvas is ready for your review: three long jump directions (A · Editorial, B · Stadium board, C · Pit view) and the high jump grid in light + navy. Tell me which direction or mix you'd like and I'll build the full app — officials' touch entry, live spectator view, demo data, tweaks, and the deployment handoff doc.
 
+## User
+
+Let's go with direction A with the "current jumper" board from direction C.
+
+## Assistant
+
+_[tool: update_todos]_
+
+_[tool: copy_starter_component]_
+
+A·table + C's hero card — good combo. Building the full app now.
+
+_[tool: write_file]_
+
+Now the core logic — units/ranking engine and the persistent store with cross-tab sync.
+
+_[tool: write_file]_
+
+_[tool: write_file]_
+
+_[tool: write_file]_
+
+Now the shared UI components used by both views.
+
+_[tool: write_file]_
+
+Now the officials' scoring app.
+
+## User
+
+Let's go with direction A with the "current jumper" board from direction C.
+
+## Assistant
+
+_[tool: write_file]_
+
+_[tool: write_file]_
+
+_[tool: write_file]_
+
+_[tool: write_file]_
+
+Already on it — the officials' scoring view is built. Now the spectator live-results view (direction A table + C hero card), with tweaks and the entry pages.
+
+_[tool: read_file]_
+
+_[tool: show_html]_
+
+_[tool: str_replace_edit]_
+
+_[tool: write_file]_
+
+_[tool: show_html]_
+
+The tweaks starter uses a different API than I assumed — fixing the spectator app to match.
+
+_[tool: show_html]_
+
+_[tool: update_todos]_
+
+_[tool: done]_
+
+Both views render correctly. Wrapping up with verification.
+
+_[tool: fork_verifier_agent]_
+
+**The full app is built.** Start at the home page and open the two views side by side — marks entered in Scoring appear on Live Results instantly (same browser, separate tabs/panes work too).
+
+**What's in:**
+- **Officials Scoring** — touch-first pad: feet stepper + inch/quarter-inch keys (or metric keypad), Foul/Pass/Save, tap-any-cell corrections, high jump O/X/— entry with bar raise and auto-elimination, plus a Setup tab (meet info, rosters, new events/flights)
+- **Live Results** — your pick: direction A's editorial table with C's "now up" hero card, up-next strip, PR/SB/Meet Record badges, and ties broken by second-best mark (countback for HJ)
+- **Demo meet** — Girls LJ mid-finals (reverse-rank rotation running correctly), Girls HJ at bar 5-02, Boys Shot Put final with a meet record, Boys Triple Jump upcoming
+- **Tweaks** (toolbar) — units default, hero card on/off, gold pulse on new marks
+- **`HANDOFF.md`** — production stack guidance: single Node + Socket.io + SQLite deployable, schema, real-time flow, and a meet-day hardening checklist
+
+**Caveats:** sync is browser-local (the prototype stand-in for WebSockets — the handoff doc maps it to the real thing), and export/CSV was skipped per your answers. A verifier is doing a functional pass now; I'll fix anything it flags.
+
+## User
+
+Found issues — fixing…
+
+## Assistant
+
+_[tool: str_replace_edit]_
+
+_[tool: done]_
+
+Quarter-inch display bug fixed — `17-08.25` and `16-01.25` now render correctly everywhere (seeds, attempts, bests).
+
+One housekeeping note: the verification pass entered a couple of test marks into the demo (a 4th-round jump for Amara Okafor and an extra X for Tessa Wong in high jump). If you want the pristine demo state back, hit **Setup → Reset demo data** in the Officials view.
+
+## User
+
+https://claude.ai/code/session_01VaRYpryfkWjBURQZC2N71P
+
+pull from the claude design session linked above and create the new additions:
+
+The horizontal jumps need a second format option where each contestant only gets 4 jumps total. Please also Create a system code system similar to codenames or among us so that field event officials can connect to specific meets so that spectators cannot go in and edit live results.
+
+Please also that results can be exported to a file that is compatible with Hytek track & field meet management 6.0 software.
+
+## Assistant
+
+_[tool: str_replace_edit]_
+
+_[tool: str_replace_edit]_
+
+_[tool: write_file]_
+
+_[tool: web_fetch]_
+
+_[tool: web_search]_
+
+The Claude Code session link only returns a login page — I can't read its contents, so I'll build from your written requirements. Let me get the exact Hy-Tek export record spec first.
+
+_[tool: web_fetch]_
+
+## User
+
+The horizontal jumps need a second format option where each contestant only gets 4 jumps total. Please also Create a system code system similar to codenames or among us so that field event officials can connect to specific meets so that spectators cannot go in and edit live results.
+
+Please also that results can be exported to a file that is compatible with Hytek track & field meet management 6.0 software.
+
+## Assistant
+
+_[tool: read_file]_
+
+Now wire the access-code gate, format selector, and Hy-Tek export into the officials app.
+
+_[tool: read_file]_
+
+Now add the lock gate, format controls, code card, and export button. First the CSS:
+
+_[tool: str_replace_edit]_
+
+Now the lock gate component and OfficialApp wiring:
+
+_[tool: str_replace_edit]_
+
+Now the SetupTab — format toggle, access-code card, and Hy-Tek export:
+
+_[tool: str_replace_edit]_
+
+Now load `hytek-export.js` in the Officials HTML, and add a format meta line to the boards so the 4-attempt format reads clearly. Also update the spectator note and home page.
+
+_[tool: str_replace_edit]_
+
+_[tool: str_replace_edit]_
+
+_[tool: str_replace_edit]_
+
+_[tool: str_replace_edit]_
+
+Let me reset the demo so the new format/code seed loads, and add a prototype hint with the code on the lock screen so the demo is usable.The seed changed, so I'll clear the stale saved state so the new format/code demo loads fresh.
+
+_[tool: eval_js]_
+
+_[tool: show_html]_
+
+_[tool: eval_js]_
+
+Lock screen renders perfectly. The migration already added the `TROJAN` code to existing state, so no need to clear storage. Let me unlock and verify the new setup controls.
+
+_[tool: show_html]_
+
+_[tool: eval_js]_
+
+The page mounted before the key was set. Let me enter the code through the actual UI to test the real flow.
+
+_[tool: screenshot]_
+
+Code unlock works — auto-submits on the 6th character, shows the unlocked banner. Let me verify the Setup tab (format toggle, code card, export) and check Flight 2 for the 4-attempt format.
+
+_[tool: eval_js]_
+
+_[tool: screenshot]_
+
+The access-code card looks great. Let me scroll to the export card and the format toggle.
+
+_[tool: eval_js]_
+
+_[tool: screenshot]_
+
+Everything renders cleanly — export card, format toggle (3+3 finals vs 4 attempts). Let me verify the Hy-Tek export produces a valid file, then finish.
+
+_[tool: eval_js]_
+
+_[tool: done]_
+
+All three features work. Let me finalize.All three additions are in:
+
+**1. Second horizontal format — 4 attempts total.** Each horizontal flight now carries a format: **3+3 finals** (6 attempts, finals run in reverse-rank order) or **4 attempts** (everyone gets 4, roster order throughout, no finals cut). Toggle it per-flight in Setup, or pick it when creating a new event. The rotation/jump-order logic, hero card, and boards all respect it. The demo's Long Jump Flight 2 is seeded as a 4-attempt flight.
+
+**2. Meet access code (Codenames/Among Us style).** Officials hit a lock screen and enter a 6-character code (auto-submits, paste-friendly, I/O excluded so it's easy to read aloud). Correct code unlocks scoring and persists on that device; wrong code is rejected. Spectators never see a gate — the live page stays open and read-only, so they **can't** edit results. In Setup, the director sees the code and can rotate it with **New code** (which locks out anyone on the old one). Demo code is **TROJAN**.
+
+**3. Hy-Tek Meet Manager 6.0 export.** Setup → **Export results** downloads a semi-colon-delimited `.txt` with an `H` header record + one 33-field `E` result record per athlete, mapped to Hy-Tek's spec (event codes LJ/TJ/HJ/SP, English marks like `17'8.25`, team codes capped at 4 chars, flight/overall places). Marks export in whichever unit your toggle is set to. Import via *File → Import → Semi-Colon Delimited Rosters/Entries File → Export Results*.
+
+**Notes:** I couldn't read the linked Claude Code session (the share URL only returns a login page), so I built from your written spec — if that session had specific designs or rules, paste the relevant details and I'll fold them in. Your live demo still holds the earlier verification test entries; **Setup → Reset demo data** restores the pristine meet (now including the 4-attempt Flight 2). A verifier pass is running.
+

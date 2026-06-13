@@ -1,85 +1,92 @@
-// Quick logic smoke test: node server/smoke-test.js
+// Logic smoke test: node server/smoke-test.js
 import assert from 'node:assert';
-import { rankHorizontal, rankVertical, rotation, attemptCount } from '../shared/rank.js';
-import { parseMark, inchesToFtIn, inchesToMeters } from '../shared/format.js';
-import { exportMeet } from './hytek.js';
+import * as M from '../shared/marks.js';
+import { buildResults } from './hytek.js';
 
-const ftIn = (f, i) => f * 12 + i;
+const m = v => ({ t: 'mark', v });
+const F = { t: 'foul' }, P = { t: 'pass' };
 
-// formats
-assert.equal(inchesToFtIn(212.25), '17-08.25');
-assert.equal(inchesToFtIn(54, { decimals: 0 }), '4-06');
-assert.equal(inchesToMeters(212.25), '5.39m');
-assert.equal(parseMark('17-08.25'), 212.25);
-assert.equal(parseMark("17'8.25"), 212.25);
-assert.equal(parseMark('5.39m'), 212.2);
-assert.equal(parseMark('blah'), null);
-assert.equal(parseMark('17-13'), null); // 13 inches is invalid
+// ── formatting (meters canonical, imperial to lesser ¼ inch) ──
+assert.equal(M.fmtImperial(M.fi(17, 8.25)), '17-08.25');
+assert.equal(M.fmtImperial(M.fi(4, 6)), '4-06');
+assert.equal(M.fmtImperial(M.fi(16, 1.25)), '16-01.25');
+assert.equal(M.fmtMetric(M.fi(5, 0)), '1.52');
+assert.equal(M.fmtMark(M.fi(17, 0), 'metric'), '5.18');
 
-// horizontal ranking + tie-break on second-best
-const ev = {
-  type: 'horizontal', format: 'prelim3final3', eventCode: 'LJ',
-  athletes: [
-    { id: 'a', name: 'A A', team: 'T1', teamCode: 'T1' },
-    { id: 'b', name: 'B B', team: 'T2', teamCode: 'T2' },
-    { id: 'c', name: 'C C', team: 'T3', teamCode: 'T3' },
-  ],
-  results: {
-    a: [200, 190, null, null, null, null],
-    b: [200, 195, null, null, null, null], // same best, better 2nd → wins
-    c: ['X', 'X', null, null, null, null], // NM
-  },
+// ── horizontal ranking + 2nd-best tie-break ──────────────────
+const athletes = [
+  { id: 'a', name: 'Ann A', team: 'T1', bib: 1 },
+  { id: 'b', name: 'Bea B', team: 'T2', bib: 2 },
+  { id: 'c', name: 'Cy C', team: 'T3', bib: 3 },
+];
+const marks = {
+  a: [m(M.fi(16, 0)), m(M.fi(15, 0))],
+  b: [m(M.fi(16, 0)), m(M.fi(15, 6))], // same best, better 2nd → 1st
+  c: [F, F],                           // no mark → last
 };
-let rows = rankHorizontal(ev);
-assert.deepEqual(rows.map((r) => [r.athlete.id, r.p]), [['b', 1], ['a', 2], ['c', null]]);
+let ranked = M.rankHorizontal(athletes, marks);
+assert.deepEqual(ranked.map(r => [r.athlete.id, r.place]), [['b', 1], ['a', 2], ['c', 3]]);
+assert.equal(ranked[0].best, M.fi(16, 0));
 
-// rotation: round 3 in flight order, prelim
-let rot = rotation(ev);
-assert.equal(rot.round, 3);
-assert.equal(rot.nowId, 'a');
+// ── rotation order: final3 reverses rank for round 4 ─────────
+const fl = { type: 'horizontal', rounds: 6, format: 'final3', athletes, marks: {
+  a: [m(M.fi(16, 0)), m(M.fi(15, 0)), m(M.fi(14, 0))],
+  b: [m(M.fi(17, 0)), m(M.fi(15, 6)), m(M.fi(14, 0))],
+  c: [m(M.fi(15, 0)), m(M.fi(14, 0)), m(M.fi(13, 0))],
+} };
+const order4 = M.horizOrder(fl, 3); // finals → reverse of standing (b,a,c) => c,a,b
+assert.deepEqual(order4, ['c', 'a', 'b']);
+const nu = M.horizNextUp(fl);
+assert.equal(nu.round, 3);
+assert.equal(nu.athleteId, 'c');
 
-// finals reverse-rank order: fill prelims, check round 4 starts with last place
-ev.results.a = [200, 190, 180, null, null, null];
-ev.results.b = [200, 195, 180, null, null, null];
-ev.results.c = ['X', 'X', 'X', null, null, null];
-rot = rotation(ev);
-assert.equal(rot.round, 4);
-assert.equal(rot.nowId, 'c'); // NM jumps first in finals
+// ── open4: 4 attempts, roster order throughout ───────────────
+const fl4 = { type: 'horizontal', rounds: 4, format: 'open4', athletes, marks: {
+  a: [m(M.fi(16, 0))], b: [m(M.fi(17, 0))], c: [m(M.fi(15, 0))],
+} };
+assert.deepEqual(M.horizOrder(fl4, 3), ['a', 'b', 'c']); // never reverses
+assert.equal(M.horizNextUp(fl4).round, 1);   // round 0 filled for all → round 1
+assert.equal(M.horizNextUp(fl4).athleteId, 'a'); // roster order
 
-// open4: 4 attempts, no reorder
-const ev4 = { ...ev, format: 'open4', results: { a: [200, 190, 180, null], b: [201, 0 + 195, 180, null], c: [150, 160, 170, null] } };
-assert.equal(attemptCount(ev4), 4);
-rot = rotation(ev4);
-assert.equal(rot.round, 4);
-assert.equal(rot.nowId, 'a'); // flight order, not reverse rank
-
-// vertical: countback
-const hj = {
-  type: 'vertical', eventCode: 'HJ', heights: [54, 56, 58],
-  athletes: [
-    { id: 'x', name: 'X X', team: 'T', teamCode: 'T' },
-    { id: 'y', name: 'Y Y', team: 'T', teamCode: 'T' },
-    { id: 'z', name: 'Z Z', team: 'T', teamCode: 'T' },
-  ],
-  results: {
-    x: ['O', 'XO', 'XXX'],   // 56 with 1 miss at height → 2nd
-    y: ['O', 'O', 'XXX'],    // 56 clean → 1st
-    z: ['XX', 'X', ''],      // 3 consecutive across heights → out, NH
-  },
+// ── vertical: elimination + countback ────────────────────────
+const heights = [M.fi(4, 6), M.fi(4, 8), M.fi(4, 10)];
+const vAth = [
+  { id: 'x', name: 'Xi X', team: 'T', bib: 1 },
+  { id: 'y', name: 'Yo Y', team: 'T', bib: 2 },
+  { id: 'z', name: 'Zed Z', team: 'T', bib: 3 },
+];
+const attempts = {
+  x: { 0: 'O', 1: 'XO', 2: 'XXX' },  // best 4-08, 1 miss there → 2nd
+  y: { 0: 'O', 1: 'O', 2: 'XXX' },   // best 4-08, clean → 1st
+  z: { 0: 'XXX' },                   // out, NH → last
 };
-rows = rankVertical(hj);
-assert.deepEqual(rows.map((r) => [r.athlete.id, r.p, r.out]), [['y', 1, true], ['x', 2, true], ['z', null, true]]);
+const vr = M.rankVertical(vAth, heights, attempts);
+assert.deepEqual(vr.map(r => [r.athlete.id, r.place, r.out]), [['y', 1, true], ['x', 2, true], ['z', 3, true]]);
+assert.ok(M.isEliminated(heights, attempts.z));
 
-// hytek export shape
-const out = exportMeet({ events: [ev] }, 'E');
+// ── badges: MR > PR > SB ──────────────────────────────────────
+assert.equal(M.badgeFor(M.fi(18, 0), { prM: M.fi(17, 0) }, M.fi(17, 6)), 'MR');
+assert.equal(M.badgeFor(M.fi(17, 6), { prM: M.fi(17, 0) }, M.fi(18, 0)), 'PR');
+assert.equal(M.badgeFor(M.fi(16, 6), { sbM: M.fi(16, 0) }, M.fi(18, 0)), 'SB');
+assert.equal(M.badgeFor(M.fi(15, 0), { prM: M.fi(17, 0) }, M.fi(18, 0)), null);
+
+// ── Hy-Tek export: H header + 33-field E records ─────────────
+const meet = {
+  meet: { name: 'Test Meet', venue: 'Here', date: 'May 8, 2026' },
+  events: [{ id: 'e1', name: 'Girls Long Jump', kind: 'horizontal', recordM: null,
+    flights: [{ id: 'f1', name: 'Flight 1', type: 'horizontal', rounds: 6, format: 'final3', athletes, marks }] }],
+};
+const out = buildResults(meet, 'imperial');
 const lines = out.trim().split('\r\n');
-assert.equal(lines.length, 3);
-const f = lines[0].split(';');
-assert.equal(f.length, 18);
-assert.equal(f[0], 'D');
-assert.equal(f[1], 'B');       // last name of winner-first ordering
-assert.equal(f[10], 'LJ');
-assert.equal(f[11], '16-08.00'); // 200 inches
-assert.equal(f[12], 'E');
+assert.ok(lines[0].startsWith('H;Test Meet;'));
+const e = lines[1].split(';');
+assert.equal(e.length, 33);
+assert.equal(e[0], 'E');
+assert.equal(e[1], 'F');
+assert.equal(e[4], 'LJ');
+assert.equal(e[5], 'F');         // girls
+assert.equal(e[10], "16'");      // best mark of athlete b
+assert.equal(e[23], 'Bea');      // first name (field 24 → index 23 after slice), winner first
+assert.equal(lines.length, 1 + 3); // header + 3 athletes (c's fouls still count as attempted)
 
 console.log('All smoke tests passed.');
